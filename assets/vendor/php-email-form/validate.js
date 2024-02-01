@@ -1,85 +1,62 @@
-/**
-* PHP Email Form Validation - v3.6
-* URL: https://bootstrapmade.com/php-email-form/
-* Author: BootstrapMade.com
-*/
-(function () {
-  "use strict";
+$(document).ready(function() {
 
-  let forms = document.querySelectorAll('.php-email-form');
-
-  forms.forEach( function(e) {
-    e.addEventListener('submit', function(event) {
-      event.preventDefault();
-
-      let thisForm = this;
-
-      let action = thisForm.getAttribute('action');
-      let recaptcha = thisForm.getAttribute('data-recaptcha-site-key');
-      
-      if( ! action ) {
-        displayError(thisForm, 'The form action property is not set!');
-        return;
-      }
-      thisForm.querySelector('.loading').classList.add('d-block');
-      thisForm.querySelector('.error-message').classList.remove('d-block');
-      thisForm.querySelector('.sent-message').classList.remove('d-block');
-
-      let formData = new FormData( thisForm );
-
-      if ( recaptcha ) {
-        if(typeof grecaptcha !== "undefined" ) {
-          grecaptcha.ready(function() {
-            try {
-              grecaptcha.execute(recaptcha, {action: 'php_email_form_submit'})
-              .then(token => {
-                formData.set('recaptcha-response', token);
-                php_email_form_submit(thisForm, action, formData);
-              })
-            } catch(error) {
-              displayError(thisForm, error);
-            }
-          });
-        } else {
-          displayError(thisForm, 'The reCaptcha javascript API url is not loaded!')
-        }
-      } else {
-        php_email_form_submit(thisForm, action, formData);
-      }
-    });
+  var form = $('#form'),
+      name = $('#name'),
+      email = $('#email'),
+      subject = $('#subject'),
+      message = $('#message'),
+      info = $('#info'),
+      submit = $("#submit");
+  
+  form.on('input', '#name, #email, #subject, #message,', function() {
+    $(this).css('border-color', '');
+    info.html('').slideUp();
   });
-
-  function php_email_form_submit(thisForm, action, formData) {
-    fetch(action, {
-      method: 'POST',
-      body: formData,
-      headers: {'X-Requested-With': 'XMLHttpRequest'}
-    })
-    .then(response => {
-      if( response.ok ) {
-        return response.text();
-      } else {
-        throw new Error(`${response.status} ${response.statusText} ${response.url}`); 
-      }
-    })
-    .then(data => {
-      thisForm.querySelector('.loading').classList.remove('d-block');
-      if (data.trim() == 'OK') {
-        thisForm.querySelector('.sent-message').classList.add('d-block');
-        thisForm.reset(); 
-      } else {
-        throw new Error(data ? data : 'Form submission failed and no error message returned from: ' + action); 
-      }
-    })
-    .catch((error) => {
-      displayError(thisForm, error);
-    });
+  
+  submit.on('click', function(e) {
+    e.preventDefault();
+    if(validate()) {
+      $.ajax({
+        method: "POST",
+        url: "mailer.php",
+        data: form.serialize(),
+        dataType: "json"
+      }).done(function(data) {
+        if(data.success) {
+          email.val('');
+          subject.val('');
+          message.val('');
+          name.val('');
+          info.html('Your message has been sent. Thank you!').css('color', 'green').slideDown();
+        } else {
+          info.html('Could not send mail! Sorry!').css('color', 'red').slideDown();
+        }
+      });
+    }
+  });
+  
+  function validate() {
+    var valid = true;
+    var regex = /^([a-zA-Z0-9_.+-])+\@(([a-zA-Z0-9-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+    
+    if(!regex.test(email.val())) {
+      email.css('border-color', 'red');
+      valid = false;
+    }
+    if($.trim(subject.val()) === "") {
+      subject.css('border-color', 'red');
+      valid = false;
+    }
+    if($.trim(name.val()) === "") {
+      name.css('border-color', 'red');
+      valid = false;
+    }
+    if($.trim(message.val()) === "") {
+      message.css('border-color', 'red');
+      valid = false;
+    }
+    
+    return valid;
   }
 
-  function displayError(thisForm, error) {
-    thisForm.querySelector('.loading').classList.remove('d-block');
-    thisForm.querySelector('.error-message').innerHTML = error;
-    thisForm.querySelector('.error-message').classList.add('d-block');
-  }
-
-})();
+});
